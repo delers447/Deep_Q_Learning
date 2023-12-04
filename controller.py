@@ -2,16 +2,31 @@ from Environment import EnvironmentClass
 from GUI import GUI
 import numpy as np
 from matplotlib import pyplot as plt
-import threading
+from threading import Thread
+from time import sleep
 
 ##### PARAMETERS ####
 STARTING_POS = [890.0, 140.0]
-RACERS = ["Dan", "Kefe", "Chib", "Nick", "Rupo", "Stone", "Rob", "John", "Brian", "Keith"]
+RACERS = ["Dan", "Kefe", "Chib", "Nick", "Rupo", "Stone", "Longinus", "Maximillian", "Calista", "Benedicta"]
 #RACERS_MODELS = ["Dan.model"]
 JPEGFILENAME = "TrackRace(Gated).jpg"
 N_GAMES = 250
 
 #####################
+
+class ThreadWithReturnValue(Thread):
+	def __init__(self, group=None, target=None, name=None,
+					args=(), kwargs=(), Verbose=None):
+		Thread.__init__(self, group, target, name, args, kwargs)
+		self._returnValue = None
+
+	def run(self):
+		if self._target is not None:
+			self._returnValue = self._target(self._args)
+			#print(self._returnValue)
+	def join(self):
+		Thread.join(self)
+		return self._returnValue
 
 def train(env, generation, parallel_letter):
 	
@@ -19,6 +34,7 @@ def train(env, generation, parallel_letter):
 	average_scores = [[] for i in RACERS]
 	eps_history = [[] for i in RACERS]
 	scores = [[] for i in RACERS]
+	threads = [[] for i in RACERS]
 	avg_score = 0
 	i = -1
 
@@ -28,9 +44,18 @@ def train(env, generation, parallel_letter):
 		env.load_model(F"{parallel_letter}_best_{generation-1}", car_index=i)
 
 	for game in range(N_GAMES):
-		print(F"===== NEW EPOSIDE, Generation {generation}, Game {game} ======")
+		print(F"===== NEW EPISODE, Generation {generation}, Game {game} ======")
 		for i in range(len(RACERS)):
-			score, epsilon, reward_hist = env.train(car_index=i)
+
+			threads[i]= ThreadWithReturnValue(target=env.train, args = (i))
+			#score, epsilon, reward_hist = env.train(car_index=i)
+			threads[i].start()
+
+		for i in range(len(RACERS)):
+			outputs = threads[i].join()
+			
+			#print(F"The outputs for thread {i} are {outputs}")
+			score, epsilon, reward_hist = threads[i].join()
 
 			eps_history[i].append(epsilon)
 			scores[i].append(score)
@@ -92,7 +117,7 @@ def main():
 	top_averages  = []
 	env = EnvironmentClass(JPEGFILENAME, STARTING_POS, "East", RACERS)
 	for i in range(1, 100):
-		top_average = train(env, i, 'c')
+		top_average = train(env, i, 'a')
 		top_averages.append(top_average)
 		env.purge_car_histories()
 	print(top_averages)

@@ -64,7 +64,7 @@ class EnvironmentClass:
         elif orientation == "EAST":
            self.orient_angle = 270
 
-    def train(self, car_index=1):
+    def train(self, car_index):
         score = 0
         reward_hist = []
         self.reset_cars()

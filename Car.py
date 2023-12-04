@@ -99,7 +99,7 @@ class CarObj:
         #                    [[0,1,0],[1,0,0]], [[0,1,0],[0,1,0]], [[0,1,0],[0,0,1]],
         #                    [[0,0,1],[1,0,0]], [[0,0,1],[0,1,0]], [[0,0,1],[0,0,1]]]
         #Hyper-parameters for the "Deep Q Learning"
-        self.gamma= 0.99            #Scale of "Future Rewards" in the Q-equation in learn()
+        self.gamma= 0.80            #Scale of "Future Rewards" in the Q-equation in learn()
         self.epsilon = 1.0          #Exploration % chance.  Starts high and lowers.
         self.epsilon_dec = 0.994     #Decay factor of epsilon
         self.epsilon_min = 0.45     #Floor of epsilon
