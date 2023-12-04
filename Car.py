@@ -128,6 +128,9 @@ class CarObj:
     def get_model(self):
         return self.model
 
+    def purge_history(self):
+        self.memory.purge_history()
+
     def set_model(self, this_model):
         self.model = this_model
 

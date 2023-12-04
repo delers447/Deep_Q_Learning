@@ -53,13 +53,13 @@ def train(env, generation, parallel_letter):
 
 	env.save_model(f"{parallel_letter}_best_{generation}", car_index=top_racer)
 
-	for episode, average_score in zip(episodes, average_scores):
-		plt.plot(episode, average_score)
-		#print(average_score)
-	plt.xlabel("Average Score")
-	plt.ylabel("Episodes")
-	plt.title("Deep-Q Learning Average Scores")
-	plt.show()
+	#for episode, average_score in zip(episodes, average_scores):
+	#	plt.plot(episode, average_score)
+	#	#print(average_score)
+	#plt.xlabel("Average Score")
+	#plt.ylabel("Episodes")
+	#plt.title("Deep-Q Learning Average Scores")
+	#plt.show()
 
 
 def race(env):
@@ -89,10 +89,13 @@ def race(env):
 		#env.get_cars()[0].displayCar_Info()
 
 def main():
+	top_averages  = []
 	env = EnvironmentClass(JPEGFILENAME, STARTING_POS, "East", RACERS)
-	for i in range(1, 11,):
-		train(env, i, 'a')
+	for i in range(1, 100):
+		top_average = train(env, i, 'c')
+		top_averages.append(top_average)
 		env.purge_car_histories()
+	print(top_averages)
 	env.reset_cars()
 	#env.race()
 
