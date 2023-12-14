@@ -7,10 +7,9 @@ import time, gc
 
 ##### PARAMETERS ####
 STARTING_POS = [890.0, 140.0]
-#RACERS = ["Dan", "Kefe", "Chib", "Nick", "Rupo", "Stone", "Longinus", "Maximillian", 
-#		  "Calista", "Benedicta", "Aquila", "Flora", "Zoroastres", "Servius", "Themistocles", "Achill"]
-#RACERS = ["Dan", "Kefe", "Chib", "Nick"]
-RACERS = ["Dan"]
+RACERS = ["Dan", "Kefe", "Chib", "Nick", "Rupo", "Stone", "Longinus", "Maximillian", 
+		  "Calista", "Benedicta", "Aquila", "Flora", "Zoroastres", "Servius", "Themistocles", "Achill"]
+
 #RACERS_MODELS = ["Dan.model"]
 JPEGFILENAME = "TrackRace(Gated).jpg"
 N_GAMES = 5_000
