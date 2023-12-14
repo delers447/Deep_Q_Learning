@@ -36,19 +36,7 @@ class EnvironmentClass:
     def reset_cars(self):
         for index in range(len(self.__carlist)):
             self.__carlist[index].reset()
-        """
-        for i in range(0, self.NUM_OF_DRIVERS()):
-            self.__carlist[i].front_bumper_pos = [620, 150]
-            self.__carlist[i].__speed = 1
-            self.__carlist[i].__accelerate = 10
-            #self.__carlist[i].front_bumper_pos = self.__all_cars_start_pos
-            #print(F"The new start position is {self.__carlist[i].front_bumper_pos}.")
-            self.__carlist[i].car_theta = self.orient_angle
-            #self.__carlist[i].tires_history = []
-            #self.__carlist[i].front_bumper_history = []
-            self.__carlist[i].update_Carposition()
-            self.__carlist[i].epsilon = 1.0
-        """
+        
     def __cars_adjust(self, orientation):
         orientation = orientation.upper()
 
@@ -79,7 +67,8 @@ class EnvironmentClass:
             score += reward
             done = self.disqualification_check(car_index=car_index)
             self.__carlist[car_index].remember(current_state, action_vector, reward, new_state, done)
-            self.__carlist[car_index].learn()
+            if self.__carlist[car_index].get_mem_counter()%4==0:
+                self.__carlist[car_index].learn()
         epsilon =  self.__carlist[car_index].epsilon
         #print(F"Reward Hitory: {reward_hist}")
         return score, epsilon, reward_hist
@@ -128,6 +117,10 @@ class EnvironmentClass:
         result = self.__carlist[i]
         return result
 
+    def create_random_models(self):
+        for index in range(len(self.__carlist)):
+            self.__carlist[index].create_new_model()
+
     def reward(self, car_index=0):
         car = self.__carlist[car_index]
         reward = 0
@@ -139,13 +132,13 @@ class EnvironmentClass:
         #    return -100
         if x > TRACK_COL() or y > TRACK_ROW():
             #The car went off the map.
-            return -100
+            return 0.0
         if self.TRACK_MAT[int(x), int(y)] == 0:
             #print("The spot was in the grass.")
-            return -100
+            return 0.0
 
         hist_length = len(car.front_bumper_history)
-        reward = len(car.front_bumper_history)*10
+        reward = len(car.front_bumper_history)*.10
 
         if hist_length > 1:
             present_fbumper = car.front_bumper_history[- 1]
@@ -154,13 +147,13 @@ class EnvironmentClass:
                 slope = (present_fbumper[1] - past_fbumper[1])/(present_fbumper[0] - past_fbumper[0])
             except:
                 #cannot caculuate the slope.
-                return -10
+                return 0.0
 
             for x in range(int(past_fbumper[0]), int(present_fbumper[0]) + 1):
                 fx = int(slope*(x-past_fbumper[0]) + past_fbumper[1])
                 #print("[x fx] = [", x, " ", fx," ", self.TRACK_MAT[x, fx],"]")
                 if self.TRACK_MAT[x][fx] == 2:
-                    reward = 1_000 + len(car.front_bumper_history)*20
+                    reward = 1.0
 
         return reward
 
@@ -211,9 +204,9 @@ class EnvironmentClass:
         #    print(F"\t The tire's turf at ({x},{y}) is {self.TRACK_MAT[int(x)][int(y)]}")
         for tire in tires_coordinates:
             x, y = tire
-            #if x > TRACK_COL() or y > TRACK_ROW():
-            #        print("====> Went off the track!")
-            #        return True
+            if x > TRACK_COL() or y > TRACK_ROW():
+                    print("====> Went off the track!")
+                    return True
                     #pass
             #print(F"\t The tire's turf at ({x},{y}) is {self.TRACK_MAT[int(x)][int(y)]}")
             if self.TRACK_MAT[int(x)][int(y)] == 0:

@@ -3,15 +3,18 @@ from GUI import GUI
 import numpy as np
 from matplotlib import pyplot as plt
 from threading import Thread
-from time import sleep
+import time, gc
 
 ##### PARAMETERS ####
 STARTING_POS = [890.0, 140.0]
-RACERS = ["Dan", "Kefe", "Chib", "Nick", "Rupo", "Stone", "Longinus", "Maximillian", "Calista", "Benedicta"]
+#RACERS = ["Dan", "Kefe", "Chib", "Nick", "Rupo", "Stone", "Longinus", "Maximillian", 
+#		  "Calista", "Benedicta", "Aquila", "Flora", "Zoroastres", "Servius", "Themistocles", "Achill"]
+#RACERS = ["Dan", "Kefe", "Chib", "Nick"]
+RACERS = ["Dan"]
 #RACERS_MODELS = ["Dan.model"]
 JPEGFILENAME = "TrackRace(Gated).jpg"
-N_GAMES = 250
-
+N_GAMES = 5_000
+ 
 #####################
 
 class ThreadWithReturnValue(Thread):
@@ -38,33 +41,47 @@ def train(env, generation, parallel_letter):
 	avg_score = 0
 	i = -1
 
-	#model = env.save_model("dan", car_index=1)
-
 	for i in range(len(RACERS)):
 		env.load_model(F"{parallel_letter}_best_{generation-1}", car_index=i)
 
 	for game in range(N_GAMES):
+		threads = [[] for i in RACERS]
+		start_time = time.time()
+		top_average = 0
+		top_racer = -1
 		print(F"===== NEW EPISODE, Generation {generation}, Game {game} ======")
 		for i in range(len(RACERS)):
 
 			threads[i]= ThreadWithReturnValue(target=env.train, args = (i))
-			#score, epsilon, reward_hist = env.train(car_index=i)
 			threads[i].start()
 
 		for i in range(len(RACERS)):
 			outputs = threads[i].join()
-			
-			#print(F"The outputs for thread {i} are {outputs}")
-			score, epsilon, reward_hist = threads[i].join()
+			try:
+				score, epsilon, reward_hist = outputs
+			except:
+				continue
 
 			eps_history[i].append(epsilon)
 			scores[i].append(score)
 			avg_score = np.mean(scores[i][max(0, game-20):(game+1)])
 
-			print(f"Episode {game}, Car: {RACERS[i]}, score: {score}, average_score: {round(avg_score, 2)}, Reward Hist: {reward_hist}")
+			print(f"Episode {game}, Car: {RACERS[i]}, score: {score}, average_score: {round(avg_score, 2)}, Reward Hist: {[round(reward, 2) for reward in reward_hist]}")
 			episodes[i].append(game)
 			average_scores[i].append(avg_score)
-	
+			
+			if avg_score > top_average:
+				top_racer = i
+				top_average = avg_score
+		
+		while len(threads)!=0:
+			thread = threads.pop()
+			del(thread)
+		
+		print(F"Generation {generation}, Game {game}: the best racer was {RACERS[top_racer]} with an average score of {top_average}.  Time Taken: {round(time.time() - start_time, 2)} Seconds ")
+		print(F"===== End of EPISODE, Time Taken: {round(time.time() - start_time, 2)} Seconds ======")
+
+
 	top_average = 0
 	top_racer = 10
 
@@ -78,6 +95,8 @@ def train(env, generation, parallel_letter):
 
 	env.save_model(f"{parallel_letter}_best_{generation}", car_index=top_racer)
 
+	return top_average
+
 	#for episode, average_score in zip(episodes, average_scores):
 	#	plt.plot(episode, average_score)
 	#	#print(average_score)
@@ -87,42 +106,41 @@ def train(env, generation, parallel_letter):
 	#plt.show()
 
 
-def race(env):
-	cars = env.get_cars()
-	print(env.TRACK_MAT.shape)
-
-	#print(f"The legnth of the car history is {len(cars[0].front_bumper_history)}: {cars[0].front_bumper_history}")
-
-	for car in cars:
-		print(F"The disqualification_check reported: {env.disqualification_check()}.")
-		while not env.disqualification_check():
-			print(F"The car's position: {car.front_bumper_pos} with state: {env.get_input_distances()}.")
-			state = env.get_input_distances()
-			action = car.make_decision(state)
-			#print(F"State: {state}")
-			print(f"The legnth of the car history is {len(car.front_bumper_history)}")
-			car.drive(action)
-			print(f"The legnth of the car history is {len(car.front_bumper_history)}")
-		
-		directions = [(-1,-1),(-1,1),(1,-1),(1,1),(0,-1),(0,1),(-1,0),(1,0),(0,0)]
-		for car_x, car_y in car.front_bumper_history:
-			for direction in directions:
-				dx, dy = direction
-				env.TRACK_MAT[int(car_x+dx), int(car_y+dy)] = 10
-		env.track_displayer()
-		print("+"*5, "CAR RESET", "+"*5)
-		#env.get_cars()[0].displayCar_Info()
-
 def main():
+	
+	parallel_letter = 'g'
+	log_filename = F"{parallel_letter}_generation_outcomes.csv"
+	logfile = open(log_filename, 'w')
+	generations = []
 	top_averages  = []
+	
 	env = EnvironmentClass(JPEGFILENAME, STARTING_POS, "East", RACERS)
+	env.create_random_models()
+	env.save_model(f"{parallel_letter}_best_0", car_index=0)
+
+	logfile.write("Generation, top_average")
 	for i in range(1, 100):
-		top_average = train(env, i, 'a')
+		top_average = train(env, i, parallel_letter)
+		logfile.write(F"{i}, {top_average}")
+		generations.append(i)
 		top_averages.append(top_average)
-		env.purge_car_histories()
+		#env.purge_car_histories()
+		gc.collect()
+
+	plt.plot(generations, top_averages)
+	plt.xlabel("Generation")
+	plt.ylabel("Average Score")
+	plt.title("Deep-Q Learning, Learning Vs Generation")
+	plt.show()
 	print(top_averages)
-	env.reset_cars()
+	
+	
+	#The following can be used to test a specific model.
+	#env = EnvironmentClass(JPEGFILENAME, STARTING_POS, "East", ["Dan"])
+	#env.load_model(F"d_best_0", car_index=0)
+	#env.reset_cars()
 	#env.race()
+	
 
 if __name__ == "__main__":
 	main()

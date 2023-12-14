@@ -11,7 +11,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Input, Dense, Activation, Reshape
+from tensorflow.keras.layers import Input, Dense, Activation, Reshape, BatchNormalization
 
 ACCELERATION_VARIABLE = 10
 JERK_VARIABLE = 1
@@ -102,9 +102,9 @@ class CarObj:
         self.gamma= 0.80            #Scale of "Future Rewards" in the Q-equation in learn()
         self.epsilon = 1.0          #Exploration % chance.  Starts high and lowers.
         self.epsilon_dec = 0.994     #Decay factor of epsilon
-        self.epsilon_min = 0.45     #Floor of epsilon
+        self.epsilon_min = 0.10     #Floor of epsilon
         self.batch_size = 124        #Sample size of Memory during learn()
-        self.memory = ReplayBuffer(1_000_000, 8, 9, discrete=True)
+        self.memory = ReplayBuffer(50_000, 8, 9, discrete=True)
         #Randomly Seeded Neural Network
         self.create_new_model() 
 
@@ -133,6 +133,9 @@ class CarObj:
 
     def set_model(self, this_model):
         self.model = this_model
+
+    def get_mem_counter(self):
+        return self.memory.get_mem_counter()
 
     def update_car_history(self):
         self.front_bumper_history.append(self.front_bumper_pos.copy())
@@ -305,12 +308,15 @@ class CarObj:
 
         #Input Layer.  
         model.add(Input(shape=(8, )))
-
+        model.add(BatchNormalization())
         #First Hidden Layer
-        model.add(Dense(128, activation='relu'))
+        model.add(Dense(256, activation='relu'))
 
         #Second Hidden Layer
         model.add(Dense(128, activation='relu'))
+
+        #Second Hidden Layer
+        model.add(Dense(64, activation='relu'))
 
         #Output Layer
         model.add(Dense(9))
@@ -320,7 +326,8 @@ class CarObj:
         #Package the model
         model.compile(
                 loss='mse', 
-                optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3))
+                optimizer=tf.keras.optimizers.SGD(learning_rate=1e-4))
+                #optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3))
         model.summary()
 
         self.model = model
@@ -420,7 +427,7 @@ class CarObj:
         Car will take a sample of the Memory and then fit the model to be better.
         Ie, MAGIC!
         """
-        if self.memory.mem_cntr > self.batch_size: #Not enough data to sample.
+        if self.memory.mem_cntr > self.batch_size*4: #Not enough data to sample.
             #print("+="*10, "LEARNING!","+="*10)
             state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
 
@@ -464,7 +471,15 @@ class ReplayBuffer:
         self.reward_memory = np.zeros(self.mem_size)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.float32)
 
+    def get_mem_counter(self):
+        return self.mem_cntr
+
     def purge_history(self):
+        del(self.state_memory)
+        del(self.new_state_memory)
+        del(self.action_memory)
+        del(self.reward_memory)
+        del(self.terminal_memory)
         self.mem_cntr = 0
         self.state_memory = np.zeros((self.mem_size, self.input_shape ))
         self.new_state_memory = np.zeros((self.mem_size, self.input_shape ))
